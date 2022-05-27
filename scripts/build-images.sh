@@ -41,7 +41,7 @@ echo "================================"
 # Alpine
 DOCKER_BUILDKIT=1 docker buildx \
   build \
-  --builder remotebuilder \
+  --builder localbuilder \
   --platform linux/arm64/v8,linux/amd64 \
   --build-arg DEPTHAI_BRANCH=${DEPTHAI_BRANCH} \
   --cache-to type=registry,ref="${ALPINE_CACHE_TAG}" \
@@ -86,7 +86,7 @@ echo "================================"
 #Ubuntu
 DOCKER_BUILDKIT=1 docker buildx \
   build \
-  --builder remotebuilder \
+  --builder localbuilder \
   --platform linux/arm64/v8,linux/amd64 \
   --build-arg DEPTHAI_BRANCH=${DEPTHAI_BRANCH} \
   --cache-to type=registry,ref="${UBUNTU_CACHE_TAG}" \
@@ -94,8 +94,12 @@ DOCKER_BUILDKIT=1 docker buildx \
   -t $UBUNTU_TAG \
   --push \
   --file ./robothub_sdk/docker/ubuntu/Dockerfile \
+<<<<<<< HEAD
   ./robothub_sdk
 
 echo "================================"
 echo "All done!"
 echo "================================"
+=======
+  ./robothub_sdk
+>>>>>>> test multi_cam_support-develop branch of depthai for ar0234 support
