@@ -1,0 +1,12 @@
+version: "1.0.0"
+image: luxonis/lantern-webui-demo
+name: JPEG capture
+description: Capture image in JPEG format
+language: python
+url: https://github.com/luxonis/depthai
+configuration:
+  route:
+    label: 'URL route'
+    type: 'text'
+    default: '/capture'
+
