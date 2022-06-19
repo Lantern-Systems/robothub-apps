@@ -96,16 +96,8 @@ DOCKER_BUILDKIT=1 docker buildx \
   -t $UBUNTU_TAG \
   --push \
   --file ./robothub_sdk/docker/ubuntu/Dockerfile \
-<<<<<<< HEAD
-  ./robothub_sdk
-=======
-<<<<<<< HEAD
   ./robothub_sdk
 
 echo "================================"
 echo "All done!"
 echo "================================"
-=======
-  ./robothub_sdk
->>>>>>> test multi_cam_support-develop branch of depthai for ar0234 support
->>>>>>> main
