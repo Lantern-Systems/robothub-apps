@@ -4,8 +4,6 @@ set -Eeuo pipefail
 if [[ -z "${DEPTHAI_BRANCH}" ]]; then
   DEPTHAI_BRANCH="main"
 fi
-# ALPINE_TAG="localhost:5000/luxonis/robothub-base-app:alpine-depthai-${DEPTHAI_BRANCH}"
-# UBUNTU_TAG="localhost:5000/luxonis/robothub-base-app:ubuntu-depthai-${DEPTHAI_BRANCH}"
 
 imageSuffix=""
 cacheSuffix="-buildcache"
@@ -28,6 +26,9 @@ ALPINE_CACHE_DEV_TAG="ghcr.io/luxonis/robothub-dev-app:alpine-${DEPTHAI_BRANCH}$
 UBUNTU_TAG="ghcr.io/luxonis/robothub-base-app:ubuntu-depthai-${DEPTHAI_BRANCH}${imageSuffix}"
 UBUNTU_CACHE_TAG="ghcr.io/luxonis/robothub-base-app:ubuntu-${DEPTHAI_BRANCH}${cacheSuffix}"
 LATEST_TAG="ghcr.io/luxonis/robothub-base-app:latest"
+
+# ALPINE_TAG="localhost:5000/luxonis/robothub-base-app:alpine-depthai-${DEPTHAI_BRANCH}"
+# UBUNTU_TAG="localhost:5000/luxonis/robothub-base-app:ubuntu-depthai-${DEPTHAI_BRANCH}"
 
 echo "================================"
 echo "Building images..."
