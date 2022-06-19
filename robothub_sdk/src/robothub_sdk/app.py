@@ -1,5 +1,4 @@
 import atexit
-import json
 import os
 import signal
 import uuid
@@ -22,6 +21,7 @@ from .device import Device
 from .error import RobotHubFatalException
 from .storage import store_data
 from .stream import Stream, StreamType
+from . import json
 
 
 class App:
@@ -36,7 +36,6 @@ class App:
     devices: List[Device]
     loop: asyncio.AbstractEventLoop
 
-    _exited: bool
     _loop_thread: Thread
     _run_without_devices: bool
     _comm: AgentClient
@@ -75,7 +74,6 @@ class App:
         self._loop_thread = Thread(target=self._background_loop, daemon=True)
         self._loop_thread.start()
 
-        self._exited = False
         self._running = None
         self._comm = AgentClient(self)
         self._min_update_rate = 1
@@ -138,7 +136,7 @@ class App:
                 self.stop()
                 print(e, "Application cannot start")
             except GeneratorExit:
-                pass
+                raise
             except BaseException as e:
                 traceback.print_exc()
                 self.fail_counter += 1
@@ -184,7 +182,10 @@ class App:
             if not IS_INTERACTIVE:
                 warnings.warn(error)
 
-        while not self._exited:
+        self.running = True
+        self._running = self._start()
+
+        while self.running:
             update_start = time.monotonic()
             self.update()
             update_duration = time.monotonic() - update_start
@@ -200,7 +201,6 @@ class App:
         self._process_exit()
 
     def _process_exit(self):
-        self._exited = True
         self.stop()
         self.on_exit()
 
@@ -240,7 +240,6 @@ class App:
             device.internal.close()
         self.devices.clear()
 
-        queues: List[Tuple[dai.DataOutputQueue, Stream]] = []
         openvino_version = dai.OpenVINO.Version.VERSION_2021_4
         usb2_mode = False
         self.on_initialize(devices)
@@ -266,12 +265,12 @@ class App:
                     stream.register_queue(queue)
 
                 for stream in device.streams.outputs():
-                    consumed_queue = dai_device.getOutputQueue(stream.output_queue_name, maxSize=stream.rate, blocking=False) if stream.is_consumed else None
+                    consumed_queue = dai_device.getOutputQueue(stream.output_queue_name, maxSize=2, blocking=False) if stream.is_consumed else None
                     published_queue = None
                     if stream.is_published:
                         published_queue = consumed_queue
                         if stream.published.output_queue_name != stream.output_queue_name:
-                            published_queue = dai_device.getOutputQueue(stream.published.output_queue_name, maxSize=stream.published.rate, blocking=False)
+                            published_queue = dai_device.getOutputQueue(stream.published.output_queue_name, maxSize=2, blocking=False)
 
                     if published_queue:
                         if stream.published.type == StreamType.ENCODED:
@@ -285,16 +284,24 @@ class App:
                     if consumed_queue:
                         if stream.rate > 0:
                             self._min_update_rate = min(self._min_update_rate, 1 / stream.rate)
-                        queues.append((consumed_queue, stream))
+                        consumed_queue.addCallback(stream.queue_callback)
 
                 self.devices.append(device)
 
             self._comm.report_online()
+            last_run = 0
             while self.running:
                 had_items = False
-                for (queue, stream) in queues:
-                    had_items = stream.consume_queue(queue) or had_items
+                for device in self.devices:
+                    for stream in device.streams.outputs():
+                        if stream.last_timestamp > last_run:
+                            had_items = True
+                            break
+                    else:
+                        continue
+                    break
 
                 if had_items:
                     self.on_update()
+                last_run = time.monotonic()
                 yield had_items

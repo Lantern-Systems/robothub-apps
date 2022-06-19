@@ -1,6 +1,6 @@
 import enum
 import depthai as dai
-        
+
 _COLOR_RESOLUTION = [
     dai.ColorCameraProperties.SensorResolution.THE_1080_P,
     dai.ColorCameraProperties.SensorResolution.THE_12_MP,
@@ -15,6 +15,7 @@ _MONO_RESOLUTION = [
     dai.MonoCameraProperties.SensorResolution.THE_800_P,
 ]
 
+
 class CameraResolution(enum.Enum):
     MAX_RESOLUTION = "MAX_RESOLUTION"
     MIN_RESOLUTION = "MIN_RESOLUTION"
@@ -23,6 +24,7 @@ class CameraResolution(enum.Enum):
     THE_720_P = dai.MonoCameraProperties.SensorResolution.THE_720_P
     THE_800_P = dai.MonoCameraProperties.SensorResolution.THE_800_P
     THE_1080_P = dai.ColorCameraProperties.SensorResolution.THE_1080_P
+    THE_1200_P = "1200p"
     THE_12_MP = dai.ColorCameraProperties.SensorResolution.THE_12_MP
     THE_13_MP = dai.ColorCameraProperties.SensorResolution.THE_13_MP
     THE_4_K = dai.ColorCameraProperties.SensorResolution.THE_4_K
@@ -57,8 +59,10 @@ class CameraResolution(enum.Enum):
                 return dai.ColorCameraProperties.SensorResolution.THE_4_K
             if self == CameraResolution.MIN_RESOLUTION:
                 return dai.ColorCameraProperties.SensorResolution.THE_1080_P
+            if self.value == "1200p":
+                return dai.ColorCameraProperties.SensorResolution.THE_1200_P
             if self.value not in _COLOR_RESOLUTION:
-                print(f'{self.value} is not supported for RGB camera! fallback to THE_1080_P');
+                print(f"{self.value} is not supported for RGB camera! fallback to THE_1080_P")
                 return dai.ColorCameraProperties.SensorResolution.THE_1080_P
             return self.value
 

@@ -1,8 +1,10 @@
 from __future__ import annotations
 import enum
+import time
 import uuid
+from collections import deque
 from functools import cached_property
-from typing import TYPE_CHECKING, List, Callable, Any, ClassVar, Optional, Final, Tuple
+from typing import TYPE_CHECKING, List, Callable, Any, ClassVar, Optional, Final, Tuple, Deque
 
 import depthai as dai
 from depthai.node import XLinkOut, XLinkIn  # pylint: disable=import-error
@@ -23,6 +25,27 @@ class StreamType(enum.Enum):
 PUBLISHABLE_TYPES: Final = [StreamType.FRAME, StreamType.ENCODED, StreamType.STATISTICS]
 
 
+class RateCounter:
+    _samples: Deque[float]
+
+    def __init__(self, sample_size=100):
+        self._samples = deque(maxlen=sample_size)
+
+    def record(self, now: float, n=1) -> None:
+        if n == 1:
+            self._samples.append(now)
+        else:
+            for i in range(0, n):
+                self._samples.append(now)
+
+    def value(self) -> float:
+        if len(self._samples) > 1:
+            first = self._samples[0]
+            last = self._samples[-1]
+            return len(self._samples) / (last - first)
+        return 0
+
+
 class Stream:
     device: Device
     type: StreamType
@@ -31,12 +54,15 @@ class Stream:
     rate: Optional[int]
     description: Optional[str]
     is_published: bool
+    current_rate: float
     last_value: Optional[dai.ADatatype]
+    last_timestamp: float
     published: Optional[PublishedStream]
     resolution: Tuple[int, int]
     _output_queue_name: Optional[str]
     _xlink_output: Optional[XLinkOut]
     _callbacks: List[Callable[[dai.ADatatype], Any]]
+    _rate_counter: RateCounter
 
     _queue_counter: ClassVar[int] = 0
 
@@ -63,6 +89,10 @@ class Stream:
     def is_published(self) -> bool:
         return self.published is not None
 
+    @property
+    def current_rate(self) -> float:
+        return self._rate_counter.value()
+
     def __init__(
         self,
         device: Device,
@@ -83,9 +113,11 @@ class Stream:
         self._output_queue_name = output_queue_name or Stream._gen_output_queue_name()
         self._xlink_output = None
         self.last_value = None
+        self.last_timestamp = 0
         self.published = None
         self.resolution = resolution if resolution else (0, 0)
         self._callbacks = []
+        self._rate_counter = RateCounter()
 
     def consume(self, callback: Optional[Callable[[dai.ADatatype], Any]] = None) -> None:
         self.create_output()
@@ -99,26 +131,28 @@ class Stream:
             self.output_node.link(self._xlink_output.input)
         return self._xlink_output
 
-    def publish(self, description: str = None) -> None:
+    def publish(self, description: str = None) -> PublishedStream:
         if self.type not in PUBLISHABLE_TYPES:
             raise RuntimeError(f"Publishing stream type {self.type.name} is not supported")
         if self.published:
-            return
+            return self.published
 
         if description is None:
             description = self.description
 
         self.published = PublishedStream(self.device, self.type, source=self, rate=self.rate, description=description)
+        return self.published
 
-    def consume_queue(self, queue: dai.DataOutputQueue) -> bool:
-        items = queue.tryGetAll()
-
-        for item in items:
-            self.last_value = item
-            for callback in self._callbacks:
-                callback(item)
-            return True
-        return False
+    def queue_callback(self, data: dai.ADatatype) -> None:
+        now = time.monotonic()
+        self.last_value = data
+        self.last_timestamp = now
+        if isinstance(data, dai.IMUData):
+            self._rate_counter.record(now, len(data.packets))
+        else:
+            self._rate_counter.record(now)
+        for callback in self._callbacks:
+            callback(data)
 
 
 class InputStream:
@@ -202,6 +236,8 @@ class PublishedStream:
             self.type = StreamType.ENCODED
             self.output_queue_name = f"{source.output_queue_name}-published"
             self._xlink_output = self.device.pipeline.createXLinkOut()
+            self._xlink_output.input.setBlocking(False)
+            self._xlink_output.input.setQueueSize(2)
             self._xlink_output.setStreamName(self.output_queue_name)
             encoder = self.device.create_encoder(source.output_node, self.rate)
             encoder.bitstream.link(self._xlink_output.input)

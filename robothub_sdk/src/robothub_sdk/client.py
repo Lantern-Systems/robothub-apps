@@ -1,5 +1,4 @@
 from __future__ import annotations
-import json
 import sys
 import urllib.request
 import base64
@@ -19,6 +18,7 @@ from .error import RobotHubFatalException, RobotHubConnectionException, RobotHub
 from .router import router
 from .rest import Request, Response
 from .stream import PublishedStream
+from . import json
 
 if TYPE_CHECKING:
     from .app import App
@@ -196,8 +196,8 @@ class AgentClient:
         payload: ReportedDevice = {
             "serialNumber": info.getMxId(),
             "state": info.state.value,
-            "protocol": info.desc.protocol.value,
-            "platform": info.desc.platform.value,
+            "protocol": info.protocol.value,
+            "platform": info.platform.value,
             "boardName": eeprom.boardName,
             "boardRev": eeprom.boardRev,
         }
